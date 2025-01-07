@@ -1,28 +1,38 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iran Movie Ticket Sales Map</title>
+    <title>نقشه فروش بلیت فیلم‌های ایران</title>
     <style>
         /* Basic styling */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Sahel', Arial, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: 0; /* Remove padding to avoid extra space */
             display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
+            min-height: 100vh; /* Ensure the body takes the full viewport height */
             background-color: #f0f0f0;
-            flex-direction: column;
+            flex-direction: row;
+            direction: rtl;
         }
+
         #map-container {
-            width: 30%;
+            width: 50%; /* Adjust this as needed */
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Center content inside the container */
             position: relative;
+            margin: 0 auto; /* Center the container itself */
+        }
+        #svg-container {
+            width: 100%;
+            height: auto;
         }
         #tooltip {
-            font-family: Sahel;
+            font-family: 'Sahel', Arial, sans-serif;
             background-color: rgba(0, 0, 0, 0.8);
             color: white;
             padding: 8px;
@@ -30,7 +40,9 @@
             font-size: 14px;
             pointer-events: none;
             opacity: 1;
+            width: 300px;
             margin-top: 10px;
+            text-align: center;
         }
         svg {
             width: 100%;
@@ -41,34 +53,77 @@
         }
         #dropdown-container {
             position: absolute;
-            right: 10px;
-            top: 10px;
+            right: 20px;
+            top: 20px;
             display: flex;
             flex-direction: column;
             gap: 10px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            width: 250px;
+        }
+        #movie-info {
+            margin-top: 20px;
+            text-align: right;
+        }
+        #movie-poster {
+            width: 250px;
+            max-width: 100%;
         }
         text {
             pointer-events: none;
             font-family: Arial, sans-serif;
             font-weight: bold;
         }
+        select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            background-color: #fff;
+            transition: border-color 0.3s;
+        }
+        select:focus {
+            border-color: #007bff;
+            outline: none;
+        }
     </style>
 </head>
 <body>
     <div id="map-container">
-        <!-- Placeholder for the SVG -->
+        <div id="svg-container">
+            <!-- SVG will be loaded here -->
+        </div>
+        <div id="tooltip">برای دیدن آمار فروش روی استان‌ها حرکت کنید</div>
     </div>
-    <div id="tooltip">Hover over a province to see ticket sales</div>
     <div id="dropdown-container">
         <select id="movie-dropdown"></select>
         <select id="year-dropdown">
             <option value="TOTAL">TOTAL</option>
-            <option value="1400">1400</option>
-            <option value="1401">1401</option>
-            <option value="1402">1402</option>
-            <option value="1403">1403</option>
+            <option value="1400">۱۴۰۰</option>
+            <option value="1401">۱۴۰۱</option>
+            <option value="1402">۱۴۰۲</option>
+            <option value="1403">۱۴۰۳</option>
         </select>
         <select id="province-dropdown"></select>
+        <select id="mode-dropdown">
+            <option value="absolute">تعداد فروش</option>
+            <option value="relative">فروش نسبت به باقی فیلم‌ها</option>
+            <option value="schedule">سهم از سانس‌ها</option>
+            <option value="popularity">استقبال</option>
+        </select>
+        <div id="movie-info">
+            <img id="movie-poster" src="" alt="پوستر فیلم">
+            <p id="movie-title"></p>
+            <p id="movie-distribution"></p>
+            <p id="movie-date"></p>
+            <p id="movie-tickets"></p>
+            <p id="movie-venues"></p>
+            <p id="movie-schedules"></p>
+            <p id="movie-price"></p>
+        </div>
     </div>
 
     <script>
@@ -98,7 +153,7 @@
             fetch(url)
                 .then(response => response.text())
                 .then(data => {
-                    document.querySelector('#map-container').innerHTML = data;
+                    document.querySelector('#svg-container').innerHTML = data;
                     console.log(`SVG loaded from ${url}`);
                     callback();
                 })
@@ -107,6 +162,7 @@
 
         // Load movie titles
         loadJSON('https://raw.githubusercontent.com/eledah/samfaa-explorer/refs/heads/main/movie_titles.json', function(movieTitles) {
+            movieTitles.sort(); // Sort titles alphabetically
             const movieDropdown = document.getElementById('movie-dropdown');
             movieTitles.forEach(title => {
                 const option = document.createElement('option');
@@ -137,11 +193,13 @@
                     console.log('Movie data loaded:', movieData);
                     const movieDropdown = document.getElementById('movie-dropdown');
                     const yearDropdown = document.getElementById('year-dropdown');
+                    const modeDropdown = document.getElementById('mode-dropdown');
 
                     function updateMap() {
                         const selectedMovie = movieDropdown.value;
                         const selectedYear = yearDropdown.value;
-                        console.log(`Updating map for movie: ${selectedMovie}, year: ${selectedYear}`);
+                        const selectedMode = modeDropdown.value;
+                        console.log(`Updating map for movie: ${selectedMovie}, year: ${selectedYear}, mode: ${selectedMode}`);
 
                         // Filter data based on selections
                         const filteredData = movieData.filter(movie => 
@@ -151,29 +209,94 @@
 
                         console.log('Filtered data:', filteredData);
 
-                        // Aggregate ticket sales by province using province names
-                        const ticketSales = {};
-                        filteredData.forEach(movie => {
-                            const provinceName = movie.province_id; // Use province name as the key
-                            ticketSales[provinceName] = (ticketSales[provinceName] || 0) + movie.tickets_count;
-                        });
+                        // Get the selected movie's release date
+                        const selectedMovieData = movieData.find(movie => movie.title === selectedMovie);
+                        const selectedMovieDate = selectedMovieData?.persian_date;
 
-                        console.log('Ticket sales by province:', ticketSales);
+                        // Update movie info
+                        document.getElementById('movie-poster').src = selectedMovieData?.image_url || '';
+                        document.getElementById('movie-title').textContent = `عنوان: ${selectedMovieData?.title || ''}`;
+                        document.getElementById('movie-distribution').textContent = `توزیع‌کننده: ${selectedMovieData?.distribution_title || ''}`;
+                        document.getElementById('movie-date').textContent = `تاریخ: ${selectedMovieData?.persian_date || ''}`;
+                        document.getElementById('movie-tickets').textContent = `تعداد بلیت: ${selectedMovieData?.tickets_count || ''}`;
+                        document.getElementById('movie-venues').textContent = `تعداد سالن‌ها: ${selectedMovieData?.venue_count || ''}`;
+                        document.getElementById('movie-schedules').textContent = `تعداد سانس‌ها: ${selectedMovieData?.schedule_count || ''}`;
+                        document.getElementById('movie-price').textContent = `مجموع فروش: ${selectedMovieData?.final_price?.toLocaleString() || ''}`;
+
+                        // Aggregate data by province
+                        const ticketSales = {};
+                        if (selectedMode === 'absolute') {
+                            filteredData.forEach(movie => {
+                                const provinceName = movie.province_id;
+                                ticketSales[provinceName] = (ticketSales[provinceName] || 0) + movie.tickets_count;
+                            });
+                        } else if (selectedMode === 'relative') {
+                            // Calculate percentage of total sales after release date
+                            const totalSalesByProvince = {};
+                            movieData.forEach(movie => {
+                                if (movie.persian_date >= selectedMovieDate) {
+                                    const provinceName = movie.province_id;
+                                    totalSalesByProvince[provinceName] = (totalSalesByProvince[provinceName] || 0) + movie.tickets_count;
+                                }
+                            });
+
+                            filteredData.forEach(movie => {
+                                const provinceName = movie.province_id;
+                                const movieSales = movie.tickets_count;
+                                const totalSales = totalSalesByProvince[provinceName] || 1;
+                                ticketSales[provinceName] = (movieSales / totalSales) * 100;
+                            });
+                        } else if (selectedMode === 'schedule') {
+                            // Calculate percentage of schedules after release date
+                            const totalSchedulesByProvince = {};
+                            movieData.forEach(movie => {
+                                if (movie.persian_date >= selectedMovieDate) {
+                                    const provinceName = movie.province_id;
+                                    totalSchedulesByProvince[provinceName] = (totalSchedulesByProvince[provinceName] || 0) + movie.schedule_count;
+                                }
+                            });
+
+                            filteredData.forEach(movie => {
+                                const provinceName = movie.province_id;
+                                const movieSchedules = movie.schedule_count;
+                                const totalSchedules = totalSchedulesByProvince[provinceName] || 1;
+                                ticketSales[provinceName] = (movieSchedules / totalSchedules) * 100;
+                            });
+                        } else if (selectedMode === 'popularity') {
+                            // Calculate ratio of sales share to schedule share
+                            const totalSalesByProvince = {};
+                            const totalSchedulesByProvince = {};
+                            movieData.forEach(movie => {
+                                if (movie.persian_date >= selectedMovieDate) {
+                                    const provinceName = movie.province_id;
+                                    totalSalesByProvince[provinceName] = (totalSalesByProvince[provinceName] || 0) + movie.tickets_count;
+                                    totalSchedulesByProvince[provinceName] = (totalSchedulesByProvince[provinceName] || 0) + movie.schedule_count;
+                                }
+                            });
+
+                            filteredData.forEach(movie => {
+                                const provinceName = movie.province_id;
+                                const salesShare = movie.tickets_count / (totalSalesByProvince[provinceName] || 1) * 100;
+                                const scheduleShare = movie.schedule_count / (totalSchedulesByProvince[provinceName] || 1) * 100;
+                                ticketSales[provinceName] = salesShare / (scheduleShare || 1);
+                            });
+                        }
+
+                        console.log('Data by province:', ticketSales);
 
                         // Check if ticketSales is empty
                         if (Object.keys(ticketSales).length === 0) {
-                            console.warn('No ticket sales data available for the selected movie and year.');
-                            // Optionally, you can reset the map colors here
+                            console.warn('No data available for the selected movie and year.');
                             return;
                         }
 
-                        // Find the maximum sales value
-                        const maxSales = Math.max(...Object.values(ticketSales));
-                        console.log('Maximum sales value:', maxSales);
+                        // Find the maximum value
+                        const maxValue = Math.max(...Object.values(ticketSales));
+                        console.log('Maximum value:', maxValue);
 
-                        // Handle case where maxSales is zero
-                        if (maxSales === 0) {
-                            console.warn('Maximum sales value is zero, all provinces will be set to the lowest color.');
+                        // Handle case where maxValue is zero
+                        if (maxValue === 0) {
+                            console.warn('Maximum value is zero, all provinces will be set to the lowest color.');
                         }
 
                         // Get all province path elements
@@ -182,14 +305,14 @@
                         // Apply colors and add hover events
                         provinces.forEach(path => {
                             const provinceName = provinceMap[path.id];
-                            const sales = ticketSales[provinceName] || 0;
-                            const color = getColor(sales, maxSales, ticketSales);
+                            const value = ticketSales[provinceName] || 0;
+                            const color = getColor(value, maxValue, ticketSales);
                             path.style.fill = color;
 
                             // Get the ranking
-                            const salesValues = Object.values(ticketSales);
-                            salesValues.sort((a, b) => b - a);
-                            const rank = salesValues.indexOf(sales) + 1;
+                            const values = Object.values(ticketSales);
+                            values.sort((a, b) => b - a);
+                            const rank = values.indexOf(value) + 1;
 
                             // Get the center point of the province path
                             const bbox = path.getBBox();
@@ -203,8 +326,8 @@
                             }
 
                             const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                            // Create and position the text element if sales is not zero
-                            if (sales > 0) {
+                            // Create and position the text element if value is not zero
+                            if (value > 0) {
                                 text.setAttribute("id", `rank-${path.id}`);
                                 text.setAttribute("x", centerX);
                                 text.setAttribute("y", centerY);
@@ -218,17 +341,22 @@
                                 text.textContent = rank;
                             }
 
-                            // Add the text element to the SVG
-                            path.parentNode.appendChild(text);
-
-                            console.log(`Province Name: ${provinceName}, Sales: ${sales}, Color: ${color}`);
-
                             // Add hover event listeners
                             path.addEventListener('mouseenter', () => {
                                 const tooltip = document.getElementById('tooltip');
+                                let displayValue;
+                                if (selectedMode === 'absolute') {
+                                    displayValue = value.toLocaleString();
+                                } else if (selectedMode === 'popularity') {
+                                    displayValue = value.toFixed(2);
+                                } else {
+                                    displayValue = `${value.toFixed(1)}%`;
+                                }
                                 tooltip.innerHTML = `
-                                    <strong>${provinceName}</strong><br>
-                                    فروش بلیت: ${sales.toLocaleString()}
+                                    <strong>${provinceName}</strong>
+                                    ${selectedMode === 'absolute' ? 'فروش بلیت' : 
+                                      selectedMode === 'relative' ? 'درصد فروش' :
+                                      selectedMode === 'schedule' ? 'درصد سانس‌ها' : 'نسبت استقبال'}: ${displayValue}
                                 `;
                             });
 
@@ -239,28 +367,26 @@
                         });
                     }
 
-                    // Function to get color based on sales
-                    function getColor(sales, maxSales, ticketSales) {
-                        if (maxSales === 0) {
-                            return '#f7fbff'; // Return the lowest color if maxSales is zero
+                    // Function to get color based on value
+                    function getColor(value, maxValue, values) {
+                        if (maxValue === 0) {
+                            return '#f7fbff';
                         }
 
-                        // Create an array of sales values, filter out zeros, and sort it
-                        const salesValues = Object.values(ticketSales).filter(value => value > 0);
-                        salesValues.sort((a, b) => a - b); // Sort in ascending order
+                        const nonZeroValues = Object.values(values).filter(v => v > 0);
+                        nonZeroValues.sort((a, b) => a - b);
 
-                        // Determine the index for the color based on the sales ranking
-                        const index = salesValues.indexOf(sales);
-                        const totalProvinces = salesValues.length;
-                        const tier = Math.floor((index / totalProvinces) * 5); // 5 tiers
+                        const index = nonZeroValues.indexOf(value);
+                        const totalProvinces = nonZeroValues.length;
+                        const tier = Math.floor((index / totalProvinces) * 5);
 
-                        // Ensure the index is within bounds
                         return colorScale[Math.min(tier, colorScale.length - 1)];
                     }
 
                     // Add event listeners to update map on dropdown change
                     movieDropdown.addEventListener('change', updateMap);
                     yearDropdown.addEventListener('change', updateMap);
+                    modeDropdown.addEventListener('change', updateMap);
 
                     // Initial map update
                     updateMap();
