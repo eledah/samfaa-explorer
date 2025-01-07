@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iran Movie Ticket Sales Map</title>
+    <style>
+        /* Basic styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            flex-direction: column;
+        }
+        #map-container {
+            width: 30%;
+            position: relative;
+        }
+        #tooltip {
+            font-family: Sahel;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 1;
+            margin-top: 10px;
+        }
+        svg {
+            width: 100%;
+            height: auto;
+        }
+        path {
+            transition: fill 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div id="map-container">
+        <!-- Placeholder for the SVG -->
+    </div>
+    <div id="tooltip">Hover over a province to see ticket sales</div>
+
+    <script>
+        // Function to load SVG
+        function loadSVG(url, callback) {
+            fetch(url)
+                .then(response => response.text())
+                .then(data => {
+                    document.querySelector('#map-container').innerHTML = data;
+                    callback();
+                })
+                .catch(error => console.error('Error loading SVG:', error));
+        }
+
+        // Load the SVG and then apply the coloring logic
+        loadSVG('iranMap.svg', function() {
+            // Sample ticket sales data (replace with your actual data)
+            const ticketSales = {
+                1: 10000, // Province ID 1: Azerbaijan Sharqi
+                2: 12000, // Province ID 2: Azerbaijan Gharbi
+                3: 11000, // Province ID 3: Ardabil
+                4: 13000, // Province ID 4: Isfahan
+                5: 15000, // Province ID 5: Alborz
+                6: 14000, // Province ID 6: Ilam
+                7: 16000, // Province ID 7: Bushehr
+                8: 25000, // Province ID 8: Tehran
+                9: 17000, // Province ID 9: Chaharmahal and Bakhtiari
+                10: 18000, // Province ID 10: South Khorasan
+                11: 19000, // Province ID 11: Razavi Khorasan
+                12: 20000, // Province ID 12: North Khorasan
+                13: 21000, // Province ID 13: Khuzestan
+                14: 22000, // Province ID 14: Zanjan
+                15: 23000, // Province ID 15: Semnan
+                16: 24000, // Province ID 16: Sistan and Baluchestan
+                17: 25000, // Province ID 17: Fars
+                18: 26000, // Province ID 18: Qazvin
+                19: 27000, // Province ID 19: Qom
+                20: 28000, // Province ID 20: Kurdistan
+                21: 29000, // Province ID 21: Kerman
+                22: 30000, // Province ID 22: Kermanshah
+                23: 31000, // Province ID 23: Kohgiluyeh and Boyer-Ahmad
+                24: 32000, // Province ID 24: Golestan
+                25: 33000, // Province ID 25: Gilan
+                26: 34000, // Province ID 26: Lorestan
+                27: 35000, // Province ID 27: Mazandaran
+                28: 36000, // Province ID 28: Markazi
+                29: 37000, // Province ID 29: Hormozgan
+                30: 38000, // Province ID 30: Hamadan
+                31: 39000, // Province ID 31: Yazd
+            };
+
+            // Province names from JSON (already decoded)
+            const provinceData = {
+                "data": [
+                    { "value": 1, "label": 'آذربایجان شرقی' },
+                    { "value": 2, "label": 'آذربایجان غربی' },
+                    { "value": 3, "label": 'اردبیل' },
+                    { "value": 4, "label": 'اصفهان' },
+                    { "value": 5, "label": 'البرز' },
+                    { "value": 6, "label": 'ایلام' },
+                    { "value": 7, "label": 'بوشهر' },
+                    { "value": 8, "label": 'تهران' },
+                    { "value": 9, "label": 'چهارمحال بختیاری' },
+                    { "value": 10, "label": 'خراسان جنوبی' },
+                    { "value": 11, "label": 'خراسان رضوی' },
+                    { "value": 12, "label": 'خراسان شمالی' },
+                    { "value": 13, "label": 'خوزستان' },
+                    { "value": 14, "label": 'زنجان' },
+                    { "value": 15, "label": 'سمنان' },
+                    { "value": 16, "label": 'سیستان و بلوچستان' },
+                    { "value": 17, "label": 'فارس' },
+                    { "value": 18, "label": 'قزوین' },
+                    { "value": 19, "label": 'قم' },
+                    { "value": 20, "label": 'کردستان' },
+                    { "value": 21, "label": 'کرمان' },
+                    { "value": 22, "label": 'کرمانشاه' },
+                    { "value": 23, "label": 'کهگیلویه و بویراحمد' },
+                    { "value": 24, "label": 'گلستان' },
+                    { "value": 25, "label": 'گیلان' },
+                    { "value": 26, "label": 'لرستان' },
+                    { "value": 27, "label": 'مازندران' },
+                    { "value": 28, "label": 'مرکزی' },
+                    { "value": 29, "label": 'هرمزگان' },
+                    { "value": 30, "label": 'همدان' },
+                    { "value": 31, "label": 'یزد' }
+                ]
+            };
+
+            // Create a mapping of province IDs to names
+            const provinceMap = {};
+            provinceData.data.forEach(province => {
+                provinceMap[province.value] = province.label;
+            });
+
+            // Define a color scale based on ticket sales
+            const colorScale = [
+                '#f7fbff', // Lowest sales
+                '#c6dbef',
+                '#6baed6',
+                '#2171b5',
+                '#0b3d91', // Highest sales
+            ];
+
+            // Function to get color based on sales
+            function getColor(sales, maxSales) {
+                const index = Math.floor((sales / maxSales) * (colorScale.length - 1));
+                return colorScale[index];
+            }
+
+            // Find the maximum sales value
+            const maxSales = Math.max(...Object.values(ticketSales));
+
+            // Get all province path elements
+            const provinces = document.querySelectorAll('#iranMap #provinces path');
+
+            // Apply colors and add hover events
+            provinces.forEach(path => {
+                const provinceId = parseInt(path.id);
+                const sales = ticketSales[provinceId] || 0;
+                const color = getColor(sales, maxSales);
+                path.style.fill = color;
+
+                // Add hover event listeners
+                path.addEventListener('mouseenter', () => {
+                    const tooltip = document.getElementById('tooltip');
+                    tooltip.innerHTML = `
+                        <strong>${provinceMap[provinceId]}</strong><br>
+                        فروش بلیت: ${sales.toLocaleString()}
+                    `;
+                });
+
+                path.addEventListener('mouseleave', () => {
+                    const tooltip = document.getElementById('tooltip');
+                    tooltip.innerHTML = 'Hover over a province to see ticket sales';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
