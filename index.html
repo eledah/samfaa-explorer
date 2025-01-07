@@ -39,6 +39,19 @@
         path {
             transition: fill 0.3s;
         }
+        #dropdown-container {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        text {
+            pointer-events: none;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -46,139 +59,211 @@
         <!-- Placeholder for the SVG -->
     </div>
     <div id="tooltip">Hover over a province to see ticket sales</div>
+    <div id="dropdown-container">
+        <select id="movie-dropdown"></select>
+        <select id="year-dropdown">
+            <option value="TOTAL">TOTAL</option>
+            <option value="1400">1400</option>
+            <option value="1401">1401</option>
+            <option value="1402">1402</option>
+            <option value="1403">1403</option>
+        </select>
+        <select id="province-dropdown"></select>
+    </div>
 
     <script>
+        // Define a color scale based on ticket sales
+        const colorScale = [
+            '#f7fbff', // Lowest sales
+            '#c6dbef',
+            '#6baed6',
+            '#2171b5',
+            '#0b3d91', // Highest sales
+        ];
+        // Function to load JSON data
+        function loadJSON(url, callback) {
+            console.log(`Loading JSON from: ${url}`);
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    console.log(`Data loaded from ${url}:`, data);
+                    callback(data);
+                })
+                .catch(error => console.error('Error loading JSON:', error));
+        }
+
         // Function to load SVG
         function loadSVG(url, callback) {
+            console.log(`Loading SVG from: ${url}`);
             fetch(url)
                 .then(response => response.text())
                 .then(data => {
                     document.querySelector('#map-container').innerHTML = data;
+                    console.log(`SVG loaded from ${url}`);
                     callback();
                 })
                 .catch(error => console.error('Error loading SVG:', error));
         }
 
-        // Load the SVG from the external link and then apply the coloring logic
-        loadSVG('https://raw.githubusercontent.com/eledah/samfaa-explorer/refs/heads/main/iranMap.svg', function() {
-            // Sample ticket sales data (replace with your actual data)
-            const ticketSales = {
-                1: 10000, // Province ID 1: Azerbaijan Sharqi
-                2: 12000, // Province ID 2: Azerbaijan Gharbi
-                3: 11000, // Province ID 3: Ardabil
-                4: 13000, // Province ID 4: Isfahan
-                5: 15000, // Province ID 5: Alborz
-                6: 14000, // Province ID 6: Ilam
-                7: 16000, // Province ID 7: Bushehr
-                8: 25000, // Province ID 8: Tehran
-                9: 17000, // Province ID 9: Chaharmahal and Bakhtiari
-                10: 18000, // Province ID 10: South Khorasan
-                11: 19000, // Province ID 11: Razavi Khorasan
-                12: 20000, // Province ID 12: North Khorasan
-                13: 21000, // Province ID 13: Khuzestan
-                14: 22000, // Province ID 14: Zanjan
-                15: 23000, // Province ID 15: Semnan
-                16: 24000, // Province ID 16: Sistan and Baluchestan
-                17: 25000, // Province ID 17: Fars
-                18: 26000, // Province ID 18: Qazvin
-                19: 27000, // Province ID 19: Qom
-                20: 28000, // Province ID 20: Kurdistan
-                21: 29000, // Province ID 21: Kerman
-                22: 30000, // Province ID 22: Kermanshah
-                23: 31000, // Province ID 23: Kohgiluyeh and Boyer-Ahmad
-                24: 32000, // Province ID 24: Golestan
-                25: 33000, // Province ID 25: Gilan
-                26: 34000, // Province ID 26: Lorestan
-                27: 35000, // Province ID 27: Mazandaran
-                28: 36000, // Province ID 28: Markazi
-                29: 37000, // Province ID 29: Hormozgan
-                30: 38000, // Province ID 30: Hamadan
-                31: 39000, // Province ID 31: Yazd
-            };
+        // Load movie titles
+        loadJSON('https://raw.githubusercontent.com/eledah/samfaa-explorer/refs/heads/main/movie_titles.json', function(movieTitles) {
+            const movieDropdown = document.getElementById('movie-dropdown');
+            movieTitles.forEach(title => {
+                const option = document.createElement('option');
+                option.value = title;
+                option.textContent = title;
+                movieDropdown.appendChild(option);
+            });
+            console.log('Movie titles loaded:', movieTitles);
+        });
 
-            // Province names from JSON (already decoded)
-            const provinceData = {
-                "data": [
-                    { "value": 1, "label": 'آذربایجان شرقی' },
-                    { "value": 2, "label": 'آذربایجان غربی' },
-                    { "value": 3, "label": 'اردبیل' },
-                    { "value": 4, "label": 'اصفهان' },
-                    { "value": 5, "label": 'البرز' },
-                    { "value": 6, "label": 'ایلام' },
-                    { "value": 7, "label": 'بوشهر' },
-                    { "value": 8, "label": 'تهران' },
-                    { "value": 9, "label": 'چهارمحال بختیاری' },
-                    { "value": 10, "label": 'خراسان جنوبی' },
-                    { "value": 11, "label": 'خراسان رضوی' },
-                    { "value": 12, "label": 'خراسان شمالی' },
-                    { "value": 13, "label": 'خوزستان' },
-                    { "value": 14, "label": 'زنجان' },
-                    { "value": 15, "label": 'سمنان' },
-                    { "value": 16, "label": 'سیستان و بلوچستان' },
-                    { "value": 17, "label": 'فارس' },
-                    { "value": 18, "label": 'قزوین' },
-                    { "value": 19, "label": 'قم' },
-                    { "value": 20, "label": 'کردستان' },
-                    { "value": 21, "label": 'کرمان' },
-                    { "value": 22, "label": 'کرمانشاه' },
-                    { "value": 23, "label": 'کهگیلویه و بویراحمد' },
-                    { "value": 24, "label": 'گلستان' },
-                    { "value": 25, "label": 'گیلان' },
-                    { "value": 26, "label": 'لرستان' },
-                    { "value": 27, "label": 'مازندران' },
-                    { "value": 28, "label": 'مرکزی' },
-                    { "value": 29, "label": 'هرمزگان' },
-                    { "value": 30, "label": 'همدان' },
-                    { "value": 31, "label": 'یزد' }
-                ]
-            };
-
-            // Create a mapping of province IDs to names
+        // Load the province data and then the SVG
+        loadJSON('https://raw.githubusercontent.com/eledah/samfaa-explorer/refs/heads/main/province.json', function(provinceData) {
             const provinceMap = {};
+            const provinceDropdown = document.getElementById('province-dropdown');
             provinceData.data.forEach(province => {
                 provinceMap[province.value] = province.label;
+                const option = document.createElement('option');
+                option.value = province.value;
+                option.textContent = province.label;
+                provinceDropdown.appendChild(option);
             });
+            console.log('Province data loaded:', provinceData);
 
-            // Define a color scale based on ticket sales
-            const colorScale = [
-                '#f7fbff', // Lowest sales
-                '#c6dbef',
-                '#6baed6',
-                '#2171b5',
-                '#0b3d91', // Highest sales
-            ];
+            // Load the SVG from the external link and then apply the coloring logic
+            loadSVG('https://raw.githubusercontent.com/eledah/samfaa-explorer/refs/heads/main/iranMap.svg', function() {
+                // Load movie data
+                loadJSON('https://raw.githubusercontent.com/eledah/samfaa-explorer/refs/heads/main/combined_data.json', function(movieData) {
+                    console.log('Movie data loaded:', movieData);
+                    const movieDropdown = document.getElementById('movie-dropdown');
+                    const yearDropdown = document.getElementById('year-dropdown');
 
-            // Function to get color based on sales
-            function getColor(sales, maxSales) {
-                const index = Math.floor((sales / maxSales) * (colorScale.length - 1));
-                return colorScale[index];
-            }
+                    function updateMap() {
+                        const selectedMovie = movieDropdown.value;
+                        const selectedYear = yearDropdown.value;
+                        console.log(`Updating map for movie: ${selectedMovie}, year: ${selectedYear}`);
 
-            // Find the maximum sales value
-            const maxSales = Math.max(...Object.values(ticketSales));
+                        // Filter data based on selections
+                        const filteredData = movieData.filter(movie => 
+                            movie.title === selectedMovie && 
+                            (selectedYear === "TOTAL" || movie.screening_id == selectedYear)
+                        );
 
-            // Get all province path elements
-            const provinces = document.querySelectorAll('#iranMap #provinces path');
+                        console.log('Filtered data:', filteredData);
 
-            // Apply colors and add hover events
-            provinces.forEach(path => {
-                const provinceId = parseInt(path.id);
-                const sales = ticketSales[provinceId] || 0;
-                const color = getColor(sales, maxSales);
-                path.style.fill = color;
+                        // Aggregate ticket sales by province using province names
+                        const ticketSales = {};
+                        filteredData.forEach(movie => {
+                            const provinceName = movie.province_id; // Use province name as the key
+                            ticketSales[provinceName] = (ticketSales[provinceName] || 0) + movie.tickets_count;
+                        });
 
-                // Add hover event listeners
-                path.addEventListener('mouseenter', () => {
-                    const tooltip = document.getElementById('tooltip');
-                    tooltip.innerHTML = `
-                        <strong>${provinceMap[provinceId]}</strong><br>
-                        فروش بلیت: ${sales.toLocaleString()}
-                    `;
-                });
+                        console.log('Ticket sales by province:', ticketSales);
 
-                path.addEventListener('mouseleave', () => {
-                    const tooltip = document.getElementById('tooltip');
-                    tooltip.innerHTML = 'Hover over a province to see ticket sales';
+                        // Check if ticketSales is empty
+                        if (Object.keys(ticketSales).length === 0) {
+                            console.warn('No ticket sales data available for the selected movie and year.');
+                            // Optionally, you can reset the map colors here
+                            return;
+                        }
+
+                        // Find the maximum sales value
+                        const maxSales = Math.max(...Object.values(ticketSales));
+                        console.log('Maximum sales value:', maxSales);
+
+                        // Handle case where maxSales is zero
+                        if (maxSales === 0) {
+                            console.warn('Maximum sales value is zero, all provinces will be set to the lowest color.');
+                        }
+
+                        // Get all province path elements
+                        const provinces = document.querySelectorAll('#iranMap #provinces path');
+
+                        // Apply colors and add hover events
+                        provinces.forEach(path => {
+                            const provinceName = provinceMap[path.id];
+                            const sales = ticketSales[provinceName] || 0;
+                            const color = getColor(sales, maxSales, ticketSales);
+                            path.style.fill = color;
+
+                            // Get the ranking
+                            const salesValues = Object.values(ticketSales);
+                            salesValues.sort((a, b) => b - a);
+                            const rank = salesValues.indexOf(sales) + 1;
+
+                            // Get the center point of the province path
+                            const bbox = path.getBBox();
+                            const centerX = bbox.x + bbox.width / 2;
+                            const centerY = bbox.y + bbox.height / 2;
+
+                            // Remove existing rank text if any
+                            const existingText = document.getElementById(`rank-${path.id}`);
+                            if (existingText) {
+                                existingText.remove();
+                            }
+
+                            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                            // Create and position the text element if sales is not zero
+                            if (sales > 0) {
+                                text.setAttribute("id", `rank-${path.id}`);
+                                text.setAttribute("x", centerX);
+                                text.setAttribute("y", centerY);
+                                text.setAttribute("text-anchor", "middle");
+                                text.setAttribute("dominant-baseline", "middle");
+                                text.setAttribute("fill", "white");
+                                text.setAttribute("paint-order", "stroke");
+                                text.setAttribute("stroke", "black"); 
+                                text.setAttribute("stroke-width", "3px");
+                                text.setAttribute("font-size", "25px");
+                                text.textContent = rank;
+                            }
+
+                            // Add the text element to the SVG
+                            path.parentNode.appendChild(text);
+
+                            console.log(`Province Name: ${provinceName}, Sales: ${sales}, Color: ${color}`);
+
+                            // Add hover event listeners
+                            path.addEventListener('mouseenter', () => {
+                                const tooltip = document.getElementById('tooltip');
+                                tooltip.innerHTML = `
+                                    <strong>${provinceName}</strong><br>
+                                    فروش بلیت: ${sales.toLocaleString()}
+                                `;
+                            });
+
+                            path.addEventListener('mouseleave', () => {
+                                const tooltip = document.getElementById('tooltip');
+                                tooltip.innerHTML = 'Hover over a province to see ticket sales';
+                            });
+                        });
+                    }
+
+                    // Function to get color based on sales
+                    function getColor(sales, maxSales, ticketSales) {
+                        if (maxSales === 0) {
+                            return '#f7fbff'; // Return the lowest color if maxSales is zero
+                        }
+
+                        // Create an array of sales values, filter out zeros, and sort it
+                        const salesValues = Object.values(ticketSales).filter(value => value > 0);
+                        salesValues.sort((a, b) => a - b); // Sort in ascending order
+
+                        // Determine the index for the color based on the sales ranking
+                        const index = salesValues.indexOf(sales);
+                        const totalProvinces = salesValues.length;
+                        const tier = Math.floor((index / totalProvinces) * 5); // 5 tiers
+
+                        // Ensure the index is within bounds
+                        return colorScale[Math.min(tier, colorScale.length - 1)];
+                    }
+
+                    // Add event listeners to update map on dropdown change
+                    movieDropdown.addEventListener('change', updateMap);
+                    yearDropdown.addEventListener('change', updateMap);
+
+                    // Initial map update
+                    updateMap();
                 });
             });
         });
