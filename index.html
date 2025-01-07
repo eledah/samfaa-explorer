@@ -59,8 +59,8 @@
                 .catch(error => console.error('Error loading SVG:', error));
         }
 
-        // Load the SVG and then apply the coloring logic
-        loadSVG('iranMap.svg', function() {
+        // Load the SVG from the external link and then apply the coloring logic
+        loadSVG('https://raw.githubusercontent.com/eledah/samfaa-explorer/refs/heads/main/iranMap.svg', function() {
             // Sample ticket sales data (replace with your actual data)
             const ticketSales = {
                 1: 10000, // Province ID 1: Azerbaijan Sharqi
