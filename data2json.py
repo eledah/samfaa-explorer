@@ -33,4 +33,10 @@ data_list = df_selected.to_dict(orient='records')
 with open('combined_data.json', 'w', encoding='utf-8') as json_file:
     json.dump(data_list, json_file, ensure_ascii=False, indent=4)
 
+# Get unique movie titles and save to separate JSON file
+unique_titles = df_selected['title'].unique().tolist()
+with open('movie_titles.json', 'w', encoding='utf-8') as titles_file:
+    json.dump(unique_titles, titles_file, ensure_ascii=False, indent=4)
+
 print("Excel data has been converted to JSON and saved to combined_data.json")
+print("Unique movie titles have been saved to movie_titles.json")
